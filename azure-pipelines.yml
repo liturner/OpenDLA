@@ -1,0 +1,46 @@
+# All branches will trigger this pipeline
+
+variables:
+  majorVersion: 0
+  minorVersion: 1
+  
+name: 'OpenDLA_$(majorVersion).$(minorVersion).$(Build.BuildId)'
+
+pool:
+  vmImage: 'windows-latest'
+
+steps:
+- checkout: self 
+  clean: true
+  submodules: true 
+
+# Super nasty hack fix to resolve a problem with the windows VM
+# https://developercommunity.visualstudio.com/content/problem/539158/hosted-windows-2019-with-vs2019-is-failing-builds.html
+- task: PowerShell@2
+  inputs:
+    targetType: 'inline'
+    script: 'Set-ItemProperty ''HKLM:\SOFTWARE\Microsoft\Windows Kits\Installed Roots'' -Name KitsRoot10 -Value ''C:\Program Files (x86)\Windows Kits\10\'''
+
+# Switch to VS Build task on Docs recomendation
+# https://docs.microsoft.com/en-us/azure/devops/pipelines/tasks/build/msbuild?view=azure-devops
+- task: VSBuild@1
+  inputs:
+    solution: '**\*.sln'
+    msbuildArgs: '/property:OutDir=$(Build.BinariesDirectory)\'
+    platform: 'x64'
+    configuration: 'release'
+    clean: true
+    msbuildArchitecture: 'x64'
+    logProjectEvents: false
+
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: '$(Build.BinariesDirectory)'
+    Contents: '**'
+    TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+# Only Upload if not debug
+- task: PublishBuildArtifacts@1
+  condition: eq(variables['system.debug'], 'false')
+  inputs:
+    pathtoPublish: $(Build.ArtifactStagingDirectory)
