@@ -3,6 +3,8 @@
 
 #include "framework.h"
 #include "resource.h"
+#include "Renderer.h"
+#include <chrono>
 
 #define MAX_LOADSTRING 100
 
@@ -10,10 +12,21 @@
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+OpenDLA::Renderer renderer;
+
+// Frame Time Variables
+std::chrono::time_point<std::chrono::system_clock> g_frameStart;
+std::chrono::time_point<std::chrono::system_clock> g_frameEnd;
+double g_frameTime;
+
+// Main Window
+RECT mainWindowRect;
+HWND hWnd;
+RECT d3DWindowRect;
+HWND d3DWindowHWnd;
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
-BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
@@ -30,24 +43,86 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
     MyRegisterClass(hInstance);
 
     // Perform application initialization:
-    if (!InitInstance (hInstance, nCmdShow))
-    {
-        return FALSE;
-    }
+	hInst = hInstance; // Store instance handle in our global variable
+	hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, NULL, NULL, hInstance, NULL);
+	d3DWindowHWnd = CreateWindowW(szWindowClass, szTitle, WS_CHILD, 0, 0, 0, 0, hWnd, NULL, hInstance, NULL);	// WS_CHILD is important for Child Windows!. Pos / Size is ignored as updated with WM_SIZE
+	SetParent(d3DWindowHWnd, hWnd);	// Without this, the window can be moved like an entirely seperate window
+
+	if (!hWnd)
+	{
+		return FALSE;
+	}
+
+	ShowWindow(hWnd, nCmdShow);
+	UpdateWindow(hWnd);
+
+	ShowWindow(d3DWindowHWnd, nCmdShow);
+	//UpdateWindow(hWndD3D);
+
+	HRESULT hr = renderer.Initialise(d3DWindowHWnd);
+	if (FAILED(hr))
+		return hr;
 
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_OPENDLA));
 
+	bool bQuit = false;
+	bool bGotMsg;
     MSG msg;
+	msg.message = WM_NULL;
+	PeekMessage(&msg, NULL, 0U, 0U, PM_NOREMOVE);
+	
 
     // Main message loop:
-    while (GetMessage(&msg, NULL, 0, 0))
-    {
-        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
-        {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-    }
+	while (!bQuit)
+	{
+		g_frameStart = std::chrono::system_clock::now();
+		
+		// Process window events.
+		// Use PeekMessage() so we can use idle time to render the scene. 
+		bGotMsg = (PeekMessageW(&msg, NULL, 0U, 0U, PM_REMOVE) != 0);
+
+		if (bGotMsg)
+		{
+			if (msg.message == WM_QUIT)
+				bQuit = true;
+
+			if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+			{
+				// Translate and dispatch the message
+				TranslateMessage(&msg);
+				DispatchMessage(&msg);
+			}
+		}
+		else
+		{
+			// Update the scene.
+			// renderer.Update();
+
+			// Render frames during idle time (when no messages are waiting).
+			renderer.Render();
+
+			// Present the frame to the screen.
+			renderer.Present();
+
+			// We should only get here after all windows events are done too thanks to bGotMsg
+			g_frameEnd = std::chrono::system_clock::now();
+			std::chrono::duration<double> elapsed_seconds = g_frameEnd - g_frameStart;
+			g_frameTime = elapsed_seconds.count();
+
+			// If needed, cap to 30Fps
+			double targetMinimumFrameTime = 1.0 / 30.0;
+			if (g_frameTime < targetMinimumFrameTime)
+			{
+				DWORD sleepFor = DWORD((targetMinimumFrameTime - g_frameTime) * 1000.0);
+				Sleep(sleepFor);
+			}
+		}
+	}
+
+	// Do Cleanup here
+
+	// ToDo: Cleanup
+	renderer.Release();
 
     return (int) msg.wParam;
 }
@@ -77,34 +152,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.lpszClassName  = szWindowClass;
     wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
-    return RegisterClassExW(&wcex);
-}
-
-//
-//   FUNCTION: InitInstance(HINSTANCE, int)
-//
-//   PURPOSE: Saves instance handle and creates main window
-//
-//   COMMENTS:
-//
-//        In this function, we save the instance handle in a global variable and
-//        create and display the main program window.
-//
-BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
-{
-   hInst = hInstance; // Store instance handle in our global variable
-
-   HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, NULL, NULL, hInstance, NULL);
-
-   if (!hWnd)
-   {
-      return FALSE;
-   }
-
-   ShowWindow(hWnd, nCmdShow);
-   UpdateWindow(hWnd);
-
-   return TRUE;
+	return RegisterClassExW(&wcex);
 }
 
 
@@ -118,7 +166,7 @@ void CreateControls(HWND hWnd)
 //
 //  FUNCTION: WndProc(HWND, UINT, WPARAM, LPARAM)
 //
-//  PURPOSE: Processes messages for the main window.
+//  PURPOSE: Processes messages for the window. Be aware that the child d3d window will also send messages here
 //
 //  WM_COMMAND  - process the application menu
 //  WM_PAINT    - Paint the main window
@@ -127,6 +175,11 @@ void CreateControls(HWND hWnd)
 //
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	// We can just ignore the D3D Window Messages for now
+	// ToDo: Check if I can register a window without a WndProc
+	if (hWnd == d3DWindowHWnd)
+		return DefWindowProc(hWnd, message, wParam, lParam);
+
     switch (message)
     {
     case WM_COMMAND:
@@ -156,6 +209,13 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         break;
 	case WM_CREATE:
 		CreateControls(hWnd);
+		break;
+	case WM_SIZE:
+		// Update the global size variables and the d3d child window size
+		GetClientRect(hWnd, &mainWindowRect);
+		d3DWindowRect = mainWindowRect;
+		d3DWindowRect.left = 200;
+		MoveWindow(d3DWindowHWnd, d3DWindowRect.left, d3DWindowRect.top, d3DWindowRect.right - d3DWindowRect.left, d3DWindowRect.bottom, TRUE);
 		break;
     case WM_DESTROY:
         PostQuitMessage(0);
