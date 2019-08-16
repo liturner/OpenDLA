@@ -3,11 +3,16 @@
 OpenDLA::Renderer::Renderer() :
 	m_pDevice(NULL),
 	m_pDeviceContext(NULL),
+	m_pD3dDebug(NULL),
 	m_pDXGISwapChain(NULL),
 	m_pBackBuffer(NULL),
 	m_pDepthStencil(NULL),
 	m_pRenderTarget(NULL),
-	m_pDepthStencilView(NULL)
+	m_pDepthStencilView(NULL),
+	m_pVertexShader(NULL),
+	m_pPixelShader(NULL),
+	m_pInputLayout(NULL),
+	m_pVertexBuffer(NULL)
 {
 	m_bbDesc = D3D11_TEXTURE2D_DESC();
 	m_viewport = D3D11_VIEWPORT();
@@ -48,6 +53,8 @@ HRESULT OpenDLA::Renderer::Initialise(HWND hWnd)
 	if (FAILED(hr))
 		return hr;
 
+	m_pDevice->QueryInterface(__uuidof(ID3D11Debug), reinterpret_cast<void**>(&m_pD3dDebug));
+	
 	DXGI_SWAP_CHAIN_DESC desc;
 	ZeroMemory(&desc, sizeof(DXGI_SWAP_CHAIN_DESC));
 	desc.Windowed = TRUE; // Sets the initial state of full-screen mode.
@@ -102,33 +109,203 @@ HRESULT OpenDLA::Renderer::Initialise(HWND hWnd)
 
 	m_pDeviceContext->RSSetViewports(1, &m_viewport);
 
+	// Vertex Buffer (its fixed for now, will move later
+	// Dummy Data for Vertex Buffer
+	Point DummyData[] =
+	{
+		{DirectX::XMFLOAT3(-50.f,-50.f,-50.f), DirectX::XMFLOAT3(0,   0,   0),},
+		{DirectX::XMFLOAT3(-50.f,-50.f, 50.f), DirectX::XMFLOAT3(0,   0,   1),},
+		{DirectX::XMFLOAT3(-50.f, 50.f,-50.f), DirectX::XMFLOAT3(0,   1,   0),},
+		{DirectX::XMFLOAT3(-50.f, 50.f, 50.f), DirectX::XMFLOAT3(0,   1,   1),},
+		{DirectX::XMFLOAT3(50.f,-50.f,-50.f), DirectX::XMFLOAT3(1,   0,   0),},
+		{DirectX::XMFLOAT3(50.f,-50.f, 50.f), DirectX::XMFLOAT3(1,   0,   1),},
+		{DirectX::XMFLOAT3(50.f, 50.f,-50.f), DirectX::XMFLOAT3(1,   1,   0),},
+		{DirectX::XMFLOAT3(50.f, 50.f, 50.f), DirectX::XMFLOAT3(1,   1,   1),},
+	};
+
+	// Vertex Buffer
+	CD3D11_BUFFER_DESC vDesc(sizeof(DummyData), D3D11_BIND_VERTEX_BUFFER);
+	D3D11_SUBRESOURCE_DATA vData;
+	ZeroMemory(&vData, sizeof(D3D11_SUBRESOURCE_DATA));
+	vData.pSysMem = DummyData;
+	vData.SysMemPitch = 0;
+	vData.SysMemSlicePitch = 0;
+	hr = m_pDevice->CreateBuffer(&vDesc, &vData, &m_pVertexBuffer);
+	if (FAILED(hr))
+		return hr;
+
 	return TRUE;
+}
+
+HRESULT OpenDLA::Renderer::OnWindowResize(const RECT& _windowRect)
+{
+	// Small safety check to make sure we dont do anything stupid here
+	if (!m_pDevice) return FALSE;
+
+	SAFE_RELEASE(m_pWindowDependantCBuffer)
+
+	// https://en.wikipedia.org/wiki/Orthographic_projection
+	ScreenDependantConstantBuffer m_constantBufferData;
+	m_constantBufferData.orthoOriginZProjection = DirectX::XMFLOAT4X4(2.f / (float)_windowRect.right, 0.f, 0.f, 0.f,
+		0.f, 2.f / (float)_windowRect.top, 0.f, 0.f,
+		0.f, 0.f, 0.f, 0.f,
+		0.f, 0.f, 0.f, 1.f);
+
+	CD3D11_BUFFER_DESC cbDesc(
+		sizeof(ScreenDependantConstantBuffer),
+		D3D11_BIND_CONSTANT_BUFFER
+	);
+
+	HRESULT hr = m_pDevice->CreateBuffer(
+		&cbDesc,
+		nullptr,
+		&m_pWindowDependantCBuffer
+	);
+
+	m_pDeviceContext->UpdateSubresource(m_pWindowDependantCBuffer, 0, nullptr, &m_constantBufferData, 0, 0);
+
+	return hr;
 }
 
 void OpenDLA::Renderer::Render()
 {
+	// Clear the screen
 	const float teal[] = { 0.098f, 0.439f, 0.439f, 1.000f };
 	m_pDeviceContext->ClearRenderTargetView(m_pRenderTarget, teal);
 	m_pDeviceContext->ClearDepthStencilView(m_pDepthStencilView, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f,	0);
 
+	// Input Assembly Stage
+	m_pDeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_POINTLIST);
+	m_pDeviceContext->IASetInputLayout(m_pInputLayout);
+
+	const UINT stride = sizeof(Point);
+	const UINT offset = 0;
+	m_pDeviceContext->IASetVertexBuffers(0,	1, &m_pVertexBuffer, &stride, &offset);
+
+	// Vertex Shader Stage
+	m_pDeviceContext->VSSetConstantBuffers(0, 1, &m_pWindowDependantCBuffer);
+
 	// Set the render target.
 	m_pDeviceContext->OMSetRenderTargets(1,	&m_pRenderTarget, m_pDepthStencilView);
-	m_pDeviceContext->DrawAuto();
+	m_pDeviceContext->Draw(8,0);
 }
 
 void OpenDLA::Renderer::Present()
 {
-	m_pDXGISwapChain->Present(0, 0);
+	m_pDXGISwapChain->Present(1, 0);
 }
 
 void OpenDLA::Renderer::Release()
 {
-	if(m_pDevice) m_pDevice->Release();
-	if(m_pDeviceContext) m_pDeviceContext->Release();
+	SAFE_RELEASE(m_pVertexBuffer);
+	SAFE_RELEASE(m_pInputLayout);
+	if (m_pVertexShader) m_pVertexShader->Release();
+	if (m_pPixelShader) m_pPixelShader->Release();
+
 	if(m_pDXGISwapChain) m_pDXGISwapChain->Release();
 
 	if(m_pBackBuffer) m_pBackBuffer->Release();
 	if(m_pDepthStencil) m_pDepthStencil->Release();
 	if(m_pRenderTarget) m_pRenderTarget->Release();;
 	if(m_pDepthStencilView) m_pDepthStencilView->Release();
+	if(m_pDeviceContext) m_pDeviceContext->Release();
+	if(m_pDevice) m_pDevice->Release();
+	
+	m_pD3dDebug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
+}
+
+HRESULT OpenDLA::Renderer::LoadShaders()
+{
+	SAFE_RELEASE(m_pInputLayout);
+	SAFE_RELEASE(m_pVertexShader);
+	SAFE_RELEASE(m_pPixelShader);
+
+	// Vertex Shader
+	ID3DBlob* vsBlob = nullptr;
+	HRESULT hr = CompileShader(L"VertexShader.hlsl", "main", "vs_4_0_level_9_1", &vsBlob);
+	if (FAILED(hr)) 
+		return hr;
+	hr = m_pDevice->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), NULL, &m_pVertexShader);
+	if (FAILED(hr))
+	{
+		vsBlob->Release();
+		return hr;
+	}
+
+	// Vertex Description
+	D3D11_INPUT_ELEMENT_DESC iaDesc[] =
+	{
+		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		{ "COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+	};
+
+	hr = m_pDevice->CreateInputLayout(iaDesc, ARRAYSIZE(iaDesc), vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &m_pInputLayout);
+
+	if (FAILED(hr))
+	{
+		vsBlob->Release();
+		return hr;
+	}
+
+	vsBlob->Release();
+	m_pDeviceContext->VSSetShader(m_pVertexShader, NULL, 0);
+
+	// Pixel Shader
+	ID3DBlob* psBlob = nullptr;
+	hr = CompileShader(L"PixelShader.hlsl", "main", "ps_4_0_level_9_1", &psBlob);
+	if (FAILED(hr))
+		return hr;
+	hr = m_pDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), NULL, &m_pPixelShader);
+	if (FAILED(hr))
+	{
+		psBlob->Release();
+		return hr;
+	}
+	psBlob->Release();
+	m_pDeviceContext->PSSetShader(m_pPixelShader, NULL, 0);
+
+	return hr;
+}
+
+
+HRESULT OpenDLA::Renderer::CompileShader(_In_ LPCWSTR srcFile, _In_ LPCSTR entryPoint, _In_ LPCSTR profile, _Outptr_ ID3DBlob * *blob)
+{
+	if (!srcFile || !entryPoint || !profile || !blob)
+		return E_INVALIDARG;
+
+	*blob = nullptr;
+
+	UINT flags = D3DCOMPILE_ENABLE_STRICTNESS;
+#if defined( DEBUG ) || defined( _DEBUG )
+	flags |= D3DCOMPILE_DEBUG;
+#endif
+
+	const D3D_SHADER_MACRO defines[] =
+	{
+		"EXAMPLE_DEFINE", "1",
+		NULL, NULL
+	};
+
+	ID3DBlob* shaderBlob = nullptr;
+	ID3DBlob* errorBlob = nullptr;
+	HRESULT hr = D3DCompileFromFile(srcFile, defines, D3D_COMPILE_STANDARD_FILE_INCLUDE,
+		entryPoint, profile,
+		flags, 0, &shaderBlob, &errorBlob);
+	if (FAILED(hr))
+	{
+		if (errorBlob)
+		{
+			OutputDebugStringA((char*)errorBlob->GetBufferPointer());
+			errorBlob->Release();
+		}
+
+		if (shaderBlob)
+			shaderBlob->Release();
+
+		return hr;
+	}
+
+	*blob = shaderBlob;
+
+	return hr;
 }

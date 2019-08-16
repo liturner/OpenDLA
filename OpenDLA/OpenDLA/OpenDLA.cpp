@@ -59,7 +59,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 	ShowWindow(d3DWindowHWnd, nCmdShow);
 	//UpdateWindow(hWndD3D);
 
+	// Renderer Initial Setup
 	HRESULT hr = renderer.Initialise(d3DWindowHWnd);
+	if (FAILED(hr))
+		return hr;
+
+	hr = renderer.LoadShaders();
+	if (FAILED(hr))
+		return hr;
+
+	hr = renderer.OnWindowResize(d3DWindowRect);
 	if (FAILED(hr))
 		return hr;
 
@@ -162,7 +171,6 @@ void CreateControls(HWND hWnd)
 }
 
 
-
 //
 //  FUNCTION: WndProc(HWND, UINT, WPARAM, LPARAM)
 //
@@ -188,6 +196,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             // Parse the menu selections:
             switch (wmId)
             {
+			case IDM_RELOADSHADER:
+				renderer.LoadShaders();
+				break;
             case IDM_ABOUT:
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
                 break;
@@ -216,6 +227,15 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		d3DWindowRect = mainWindowRect;
 		d3DWindowRect.left = 200;
 		MoveWindow(d3DWindowHWnd, d3DWindowRect.left, d3DWindowRect.top, d3DWindowRect.right - d3DWindowRect.left, d3DWindowRect.bottom, TRUE);
+
+		// Reuse the d3DWindowRect but 0 prep it for D3D
+		d3DWindowRect.right -= d3DWindowRect.left;
+		d3DWindowRect.left = d3DWindowRect.top;
+		d3DWindowRect.top = d3DWindowRect.bottom;
+		d3DWindowRect.bottom = d3DWindowRect.left;
+		d3DWindowRect.left = 0;
+
+		renderer.OnWindowResize(d3DWindowRect);
 		break;
     case WM_DESTROY:
         PostQuitMessage(0);
