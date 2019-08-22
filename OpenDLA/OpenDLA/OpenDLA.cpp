@@ -4,7 +4,7 @@
 #include "framework.h"
 #include "resource.h"
 #include "Renderer.h"
-#include <chrono>
+#include "DLASimulation.h"
 
 #define MAX_LOADSTRING 100
 
@@ -12,7 +12,9 @@
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+
 OpenDLA::Renderer renderer;
+OpenDLA::DLASimulation g_simulation;
 
 // Frame Time Variables
 std::chrono::time_point<std::chrono::system_clock> g_frameStart;
@@ -105,10 +107,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 		else
 		{
 			// Update the scene.
+			g_simulation.Update();
 			// renderer.Update();
 
 			// Render frames during idle time (when no messages are waiting).
-			renderer.Render();
+			renderer.Render(g_simulation);
 
 			// Present the frame to the screen.
 			renderer.Present();

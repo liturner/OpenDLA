@@ -1,20 +1,12 @@
 #pragma once
 #include "framework.h"
-#include <d3d11.h>
-#include <d3d11_2.h>
-#include <d3dcompiler.h>
-#include <DirectXMath.h>
+#include "Types.h"
+#include "DLASimulation.h"
 
 #define SAFE_RELEASE(p) { if ( (p) ) { (p)->Release(); (p) = NULL; } }
 
 namespace OpenDLA
 {
-
-	struct Point
-	{
-		DirectX::XMFLOAT3 pos;
-		DirectX::XMFLOAT3 color;
-	};
 
 	// Struct holds only values which need to be updated when the Window changes size
 	struct ScreenDependantConstantBuffer {
@@ -28,7 +20,7 @@ namespace OpenDLA
 
 		HRESULT Initialise(HWND hWnd);
 		HRESULT OnWindowResize(const RECT& _windowRect);
-		void Render();
+		void Render(DLASimulation _simulation);
 		void Present();
 		void Release();
 

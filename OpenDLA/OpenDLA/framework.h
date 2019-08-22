@@ -13,3 +13,10 @@
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
+// DirectX
+#include <d3d11.h>
+#include <d3d11_2.h>
+#include <d3dcompiler.h>
+#include <DirectXMath.h>
+// Misc needed stuff
+#include <chrono>

@@ -109,31 +109,6 @@ HRESULT OpenDLA::Renderer::Initialise(HWND hWnd)
 
 	m_pDeviceContext->RSSetViewports(1, &m_viewport);
 
-	// Vertex Buffer (its fixed for now, will move later
-	// Dummy Data for Vertex Buffer
-	Point DummyData[] =
-	{
-		{DirectX::XMFLOAT3(-50.f,-50.f,-50.f), DirectX::XMFLOAT3(0,   0,   0),},
-		{DirectX::XMFLOAT3(-50.f,-50.f, 50.f), DirectX::XMFLOAT3(0,   0,   1),},
-		{DirectX::XMFLOAT3(-50.f, 50.f,-50.f), DirectX::XMFLOAT3(0,   1,   0),},
-		{DirectX::XMFLOAT3(-50.f, 50.f, 50.f), DirectX::XMFLOAT3(0,   1,   1),},
-		{DirectX::XMFLOAT3(50.f,-50.f,-50.f), DirectX::XMFLOAT3(1,   0,   0),},
-		{DirectX::XMFLOAT3(50.f,-50.f, 50.f), DirectX::XMFLOAT3(1,   0,   1),},
-		{DirectX::XMFLOAT3(50.f, 50.f,-50.f), DirectX::XMFLOAT3(1,   1,   0),},
-		{DirectX::XMFLOAT3(50.f, 50.f, 50.f), DirectX::XMFLOAT3(1,   1,   1),},
-	};
-
-	// Vertex Buffer
-	CD3D11_BUFFER_DESC vDesc(sizeof(DummyData), D3D11_BIND_VERTEX_BUFFER);
-	D3D11_SUBRESOURCE_DATA vData;
-	ZeroMemory(&vData, sizeof(D3D11_SUBRESOURCE_DATA));
-	vData.pSysMem = DummyData;
-	vData.SysMemPitch = 0;
-	vData.SysMemSlicePitch = 0;
-	hr = m_pDevice->CreateBuffer(&vDesc, &vData, &m_pVertexBuffer);
-	if (FAILED(hr))
-		return hr;
-
 	return TRUE;
 }
 
@@ -164,11 +139,42 @@ HRESULT OpenDLA::Renderer::OnWindowResize(const RECT& _windowRect)
 
 	m_pDeviceContext->UpdateSubresource(m_pWindowDependantCBuffer, 0, nullptr, &m_constantBufferData, 0, 0);
 
+	// Vertex Buffer with a dummy Point for now
+	Point* temp = new Point[1920 * 1080];
+
+	CD3D11_BUFFER_DESC vDesc;
+	ZeroMemory(&vDesc, sizeof(CD3D11_BUFFER_DESC));
+	vDesc.Usage = D3D11_USAGE_DYNAMIC;
+	vDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	vDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+	vDesc.ByteWidth = sizeof(*temp) * 1920 * 1080; // Cannot cheaply resize later  so just allocate a load now
+
+	D3D11_SUBRESOURCE_DATA vData;
+	ZeroMemory(&vData, sizeof(D3D11_SUBRESOURCE_DATA));
+	vData.pSysMem = temp;
+	vData.SysMemPitch = 0;
+	vData.SysMemSlicePitch = 0;
+
+	hr = m_pDevice->CreateBuffer(&vDesc, &vData, &m_pVertexBuffer);
+
+	delete[] temp;
+
 	return hr;
 }
 
-void OpenDLA::Renderer::Render()
+void OpenDLA::Renderer::Render(DLASimulation _simulation)
 {
+	// Vertex Buffer
+	// m_pDeviceContext->Map()
+	D3D11_MAPPED_SUBRESOURCE resource;
+	m_pDeviceContext->Map(m_pVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
+	memcpy(resource.pData, &_simulation.m_points[0], sizeof(_simulation.m_points[0]) * _simulation.m_points.size());
+	m_pDeviceContext->Unmap(m_pVertexBuffer, 0);
+
+	///
+	/// DirectX Pipeline
+	///
+
 	// Clear the screen
 	const float teal[] = { 0.098f, 0.439f, 0.439f, 1.000f };
 	m_pDeviceContext->ClearRenderTargetView(m_pRenderTarget, teal);
@@ -187,7 +193,7 @@ void OpenDLA::Renderer::Render()
 
 	// Set the render target.
 	m_pDeviceContext->OMSetRenderTargets(1,	&m_pRenderTarget, m_pDepthStencilView);
-	m_pDeviceContext->Draw(8,0);
+	m_pDeviceContext->Draw(1,0);
 }
 
 void OpenDLA::Renderer::Present()

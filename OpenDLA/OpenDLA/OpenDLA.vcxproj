@@ -102,12 +102,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="DLASimulation.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="Renderer.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="Types.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="DLASimulation.cpp" />
     <ClCompile Include="OpenDLA.cpp" />
     <ClCompile Include="Renderer.cpp" />
   </ItemGroup>
