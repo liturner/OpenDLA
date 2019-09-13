@@ -217,7 +217,8 @@ void OpenDLA::Renderer::Release()
 	if(m_pDeviceContext) m_pDeviceContext->Release();
 	if(m_pDevice) m_pDevice->Release();
 	
-	m_pD3dDebug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
+	if(m_pD3dDebug)
+		m_pD3dDebug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
 }
 
 HRESULT OpenDLA::Renderer::LoadShaders()
