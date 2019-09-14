@@ -83,7 +83,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 	PeekMessage(&msg, NULL, 0U, 0U, PM_NOREMOVE);
 	
 	// Handle the Python Logic initialisation
-	g_simulation.Initialise();
+	if (!g_simulation.Initialise())
+		return 1;
+
+	
 
     // Main message loop:
 	while (!bQuit)

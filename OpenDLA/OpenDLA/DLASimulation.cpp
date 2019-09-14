@@ -2,16 +2,12 @@
 
 OpenDLA::DLASimulation::DLASimulation()
 {
-	Point a;
-	a.pos = DirectX::XMFLOAT3(0, 0, 0);
-	a.color = DirectX::XMFLOAT3(1, 0, 0);
-
-	m_points.push_back(a);
+	
 }
 
 OpenDLA::DLASimulation::~DLASimulation()
 {
-	Py_DECREF(m_pModule);
+	Destroy();
 }
 
 bool OpenDLA::DLASimulation::Initialise()
@@ -22,48 +18,109 @@ bool OpenDLA::DLASimulation::Initialise()
 	Py_DECREF(pName);
 	if (!m_pModule) return false;
 
-	m_pUpdateFun = PyObject_GetAttrString(m_pModule, "OnUpdate");
-
-	if (!m_pUpdateFun) return false;
-	if (!PyCallable_Check(m_pUpdateFun))
+	// It is not a failure if the function is not there, but it is a fail
+	// if the function is there but not callable
+	m_pStepFun = PyObject_GetAttrString(m_pModule, "OnStep");
+	if (m_pStepFun && !PyCallable_Check(m_pStepFun))
 	{
-		Py_DECREF(m_pUpdateFun);
+		Destroy();
 		return false;
 	}
+
+	/*m_pOnStartFun = PyObject_GetAttrString(m_pModule, "OnStart");
+	if (m_pOnStartFun && !PyCallable_Check(m_pOnStartFun))
+	{
+		Destroy();
+		return false;
+	}*/
+
+	// Finally
+	OnStart();
 
 	return true;
 }
 
 void OpenDLA::DLASimulation::Update()
 {
-	PyObject* pUpdateArgs = PyTuple_New(2);
+	/*
+	Logic:
+	1. Move the walker
+	2. Check for Collision
+	3. Save walker as point if needed
+	4. Spawn new Walker
+	*/
 
-	// Pack the first arg
-	PyObject* pValue = PyLong_FromLong(5);
-	PyTuple_SetItem(pUpdateArgs, 0, pValue);
-	
-	// Pack the second arg
-	pValue = PyLong_FromLong(10);
-	PyTuple_SetItem(pUpdateArgs, 1, pValue);
+	// 1
+	DirectX::XMFLOAT3 move = OnStep(m_points[m_walkers[0]]);
+	m_points[m_walkers[0]].pos.x = m_points[m_walkers[0]].pos.x + move.x;
+	m_points[m_walkers[0]].pos.y = m_points[m_walkers[0]].pos.y + move.y;
+	m_points[m_walkers[0]].pos.z = m_points[m_walkers[0]].pos.z + move.z;
 
-	PyObject* returned = PyObject_CallObject(m_pUpdateFun, pUpdateArgs);
-	Py_DECREF(pUpdateArgs);
+	// 2
+	if (Collides(m_points[m_walkers[0]]))
+	{
+		m_points.push_back(m_points[m_walkers[0]]);
+		m_walkers[0]++;
+	}
 
-	PyObject* returned1 = PyTuple_GetItem(returned, 0);
-	PyObject* returned2 = PyTuple_GetItem(returned, 1);
-	PyObject* returned3 = PyTuple_GetItem(returned, 2);
+}
 
-	long x = PyLong_AsLong(returned1);
-	long y = PyLong_AsLong(returned2);
-	long z = PyLong_AsLong(returned3);
-
-	m_points[0].pos.x += x;
-	m_points[0].pos.y += y;
-	m_points[0].pos.z += z;
+void OpenDLA::DLASimulation::Destroy()
+{
+	if(m_pStepFun) Py_DECREF(m_pStepFun);
+	if(m_pOnStartFun) Py_DECREF(m_pOnStartFun);
+	Py_DECREF(m_pModule);
 }
 
 bool OpenDLA::DLASimulation::Collides(const Point& _point)
 {
 	return false;
+}
+
+DirectX::XMFLOAT3 OpenDLA::DLASimulation::OnStep(const Point& _point)
+{
+	PyObject* returned = PyObject_CallObject(m_pStepFun, nullptr);
+/*
+
+	PyObject* returned1 = PyTuple_GetItem(returned, 0);
+	PyObject* returned2 = PyTuple_GetItem(returned, 1);
+	PyObject* returned3 = PyTuple_GetItem(returned, 2);
+
+	float x = PyFloat_AsDouble(returned1);
+	float y = PyFloat_AsDouble(returned2);
+	float z = PyFloat_AsDouble(returned3);
+
+	return DirectX::XMFLOAT3(x, y, z);*/
+
+	if(returned) Py_DECREF(returned);
+	return DirectX::XMFLOAT3(0, 0, 0);
+}
+
+void OpenDLA::DLASimulation::OnStart()
+{
+	if (m_pOnStartFun != nullptr)
+	{
+		// It is up to the user to define the simulation logic. They may not
+		// define a seed, but may investigate two walkers colliding with one 
+		// another
+		PyObject_CallObject(m_pOnStartFun, nullptr);
+	}
+	else
+	{
+		// If the user has not defined an OnStart function, we just initialise
+		// to a single [0 0 0] seed.
+		Point a;
+		a.pos = DirectX::XMFLOAT3(0, 0, 0);
+		a.color = DirectX::XMFLOAT3(1, 0, 0);
+
+		m_points.push_back(a);
+
+		a.pos = DirectX::XMFLOAT3(10, 0, 0);
+		a.color = DirectX::XMFLOAT3(0, 1, 1);
+
+		m_points.push_back(a);
+
+		m_walkers.push_back(1);
+	}
 }
 

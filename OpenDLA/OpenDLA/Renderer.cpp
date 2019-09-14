@@ -162,7 +162,7 @@ HRESULT OpenDLA::Renderer::OnWindowResize(const RECT& _windowRect)
 	return hr;
 }
 
-void OpenDLA::Renderer::Render(DLASimulation _simulation)
+void OpenDLA::Renderer::Render(DLASimulation& _simulation)
 {
 	// Vertex Buffer
 	// m_pDeviceContext->Map()
@@ -193,7 +193,7 @@ void OpenDLA::Renderer::Render(DLASimulation _simulation)
 
 	// Set the render target.
 	m_pDeviceContext->OMSetRenderTargets(1,	&m_pRenderTarget, m_pDepthStencilView);
-	m_pDeviceContext->Draw(1,0);
+	m_pDeviceContext->Draw(_simulation.m_points.size() ,0);
 }
 
 void OpenDLA::Renderer::Present()

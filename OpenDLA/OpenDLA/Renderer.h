@@ -20,7 +20,7 @@ namespace OpenDLA
 
 		HRESULT Initialise(HWND hWnd);
 		HRESULT OnWindowResize(const RECT& _windowRect);
-		void Render(DLASimulation _simulation);
+		void Render(DLASimulation& _simulation);
 		void Present();
 		void Release();
 

@@ -24,20 +24,37 @@ namespace OpenDLA
 	{
 	private:
 		PyObject* m_pModule = nullptr;
-		PyObject* m_pUpdateFun = nullptr;
+		
 	public:
 		// Very simple for now! Should be more intelegent structure
 		std::vector<Point> m_points;
 
-		std::vector<Point> m_walkers;
+		std::vector<unsigned int> m_walkers;
 
 	public:
 		DLASimulation();
 		~DLASimulation();
 		bool Initialise();
 		void Update();
+		void Destroy();
 
+	// Internal Checks
 	private:
 		bool Collides(const Point& _point);
+
+	// Python Function Calls. These map to calls in the Python files
+	// Mentality is a 1:1 mapping, so what is returned in python will be returned here
+	private:
+
+		/// <summary>
+		/// Python call to decide where the walker should move to next.
+		/// </summary>
+		/// <param name="_walker">The Point which may be moved</param>
+		/// <returns>[X Y Z] step to be added to the walkers position</returns>
+		DirectX::XMFLOAT3 OnStep(const Point& _point);
+		PyObject* m_pStepFun = nullptr;
+
+		void OnStart();
+		PyObject* m_pOnStartFun = nullptr;
 	};
 }
