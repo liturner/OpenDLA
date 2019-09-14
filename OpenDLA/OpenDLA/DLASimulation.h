@@ -28,10 +28,16 @@ namespace OpenDLA
 	public:
 		// Very simple for now! Should be more intelegent structure
 		std::vector<Point> m_points;
+
+		std::vector<Point> m_walkers;
+
 	public:
 		DLASimulation();
 		~DLASimulation();
 		bool Initialise();
 		void Update();
+
+	private:
+		bool Collides(const Point& _point);
 	};
 }

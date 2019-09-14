@@ -51,11 +51,19 @@ void OpenDLA::DLASimulation::Update()
 
 	PyObject* returned1 = PyTuple_GetItem(returned, 0);
 	PyObject* returned2 = PyTuple_GetItem(returned, 1);
+	PyObject* returned3 = PyTuple_GetItem(returned, 2);
 
 	long x = PyLong_AsLong(returned1);
 	long y = PyLong_AsLong(returned2);
+	long z = PyLong_AsLong(returned3);
 
 	m_points[0].pos.x += x;
 	m_points[0].pos.y += y;
+	m_points[0].pos.z += z;
+}
+
+bool OpenDLA::DLASimulation::Collides(const Point& _point)
+{
+	return false;
 }
 

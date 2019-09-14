@@ -3,7 +3,11 @@ def OnUpdate(a,b):
     c = 0
     for i in range(0, a):
         c = c + b
-    return (1, 1)
+    return (1, 1, 0)
 
-def OnCollide():
-    pass
+#def OnCollide():
+#    pass
+
+# Returns start pos of the new walker
+#def OnSpawn():
+#    return (0, 0, 0)
