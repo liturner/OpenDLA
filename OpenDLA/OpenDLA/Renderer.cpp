@@ -229,7 +229,7 @@ HRESULT OpenDLA::Renderer::LoadShaders()
 
 	// Vertex Shader
 	ID3DBlob* vsBlob = nullptr;
-	HRESULT hr = CompileShader(L"VertexShader.hlsl", "main", "vs_4_0_level_9_1", &vsBlob);
+	HRESULT hr = CompileShader(L"Shaders/VertexShader.hlsl", "main", "vs_4_0_level_9_1", &vsBlob);
 	if (FAILED(hr)) 
 		return hr;
 	hr = m_pDevice->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), NULL, &m_pVertexShader);
@@ -259,7 +259,7 @@ HRESULT OpenDLA::Renderer::LoadShaders()
 
 	// Pixel Shader
 	ID3DBlob* psBlob = nullptr;
-	hr = CompileShader(L"PixelShader.hlsl", "main", "ps_4_0_level_9_1", &psBlob);
+	hr = CompileShader(L"Shaders/PixelShader.hlsl", "main", "ps_4_0_level_9_1", &psBlob);
 	if (FAILED(hr))
 		return hr;
 	hr = m_pDevice->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), NULL, &m_pPixelShader);

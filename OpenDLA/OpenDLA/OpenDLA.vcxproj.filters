@@ -62,15 +62,6 @@
     </Image>
   </ItemGroup>
   <ItemGroup>
-    <CopyFileToFolders Include="VertexShader.hlsl">
-      <Filter>Resource Files\Shaders</Filter>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="PixelShader.hlsl">
-      <Filter>Resource Files\Shaders</Filter>
-    </CopyFileToFolders>
-    <CopyFileToFolders Include="Header.hlsli">
-      <Filter>Resource Files\Shaders</Filter>
-    </CopyFileToFolders>
     <CopyFileToFolders Include="simulation.py">
       <Filter>Source Files</Filter>
     </CopyFileToFolders>
@@ -80,5 +71,18 @@
     <CopyFileToFolders Include="python37.pdb">
       <Filter>Resource Files</Filter>
     </CopyFileToFolders>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\Header.hlsli">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Shaders\PixelShader.hlsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Shaders\VertexShader.hlsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

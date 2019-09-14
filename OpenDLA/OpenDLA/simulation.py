@@ -3,7 +3,7 @@ def OnUpdate(a,b):
     c = 0
     for i in range(0, a):
         c = c + b
-    return (1, 1, 0)
+    return (1, 0, 0)
 
 #def OnCollide():
 #    pass
