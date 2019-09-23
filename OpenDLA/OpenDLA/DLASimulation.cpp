@@ -51,6 +51,7 @@ void OpenDLA::DLASimulation::Update()
 	*/
 
 	// 1
+	OnStep(m_points[m_walkers[0]]);
 	DirectX::XMFLOAT3 move = OnStep(m_points[m_walkers[0]]);
 	m_points[m_walkers[0]].pos.x = m_points[m_walkers[0]].pos.x + move.x;
 	m_points[m_walkers[0]].pos.y = m_points[m_walkers[0]].pos.y + move.y;

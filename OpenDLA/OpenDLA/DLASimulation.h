@@ -52,9 +52,11 @@ namespace OpenDLA
 		/// <param name="_walker">The Point which may be moved</param>
 		/// <returns>[X Y Z] step to be added to the walkers position</returns>
 		DirectX::XMFLOAT3 OnStep(const Point& _point);
+
 		PyObject* m_pStepFun = nullptr;
 
 		void OnStart();
+
 		PyObject* m_pOnStartFun = nullptr;
 	};
 }

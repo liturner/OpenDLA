@@ -1,5 +1,5 @@
 
-def OnStartX():
+def OnStart():
 	pass
 
 def OnStep():
