@@ -13,6 +13,7 @@
 #include <malloc.h>
 #include <memory.h>
 #include <tchar.h>
+#include <vector>
 // DirectX
 #include <d3d11.h>
 #include <d3d11_2.h>
@@ -20,3 +21,12 @@
 #include <DirectXMath.h>
 // Misc needed stuff
 #include <chrono>
+// Python
+#define PY_SSIZE_T_CLEAN
+#ifdef _DEBUG
+#undef _DEBUG
+#include <python.h>
+#define _DEBUG
+#else
+#include <python.h>
+#endif

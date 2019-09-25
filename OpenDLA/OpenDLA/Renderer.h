@@ -1,7 +1,6 @@
 #pragma once
 #include "framework.h"
 #include "Types.h"
-#include "DLASimulation.h"
 
 #define SAFE_RELEASE(p) { if ( (p) ) { (p)->Release(); (p) = NULL; } }
 
@@ -20,7 +19,7 @@ namespace OpenDLA
 
 		HRESULT Initialise(HWND hWnd);
 		HRESULT OnWindowResize(const RECT& _windowRect);
-		void Render(DLASimulation& _simulation);
+		void Render(std::vector<Point>& _points);
 		void Present();
 		void Release();
 

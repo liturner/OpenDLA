@@ -1,9 +1,14 @@
+import OpenDLA 
 
 def OnStart():
-	pass
+    OpenDLA.addPoint((0,0,0),(1,0,0))
+    OpenDLA.addPoint((0,100,0),(0,0,0))
+    OpenDLA.addPoint((0,0,100),(0,2,0))
+    OpenDLA.addPoint((-100,0,0),(1,1,1))
+    pass
 
 def OnStep():
-    return (0.4, 0.7)
+    return (1, 1)
 
 
 #def OnCollide():

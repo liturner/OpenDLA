@@ -4,7 +4,6 @@
 #include "framework.h"
 #include "resource.h"
 #include "Renderer.h"
-#include "DLASimulation.h"
 
 #define MAX_LOADSTRING 100
 
@@ -14,7 +13,6 @@ WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 
 OpenDLA::Renderer renderer;
-OpenDLA::DLASimulation g_simulation;
 
 // Frame Time Variables
 std::chrono::time_point<std::chrono::system_clock> g_frameStart;
@@ -31,6 +29,173 @@ HWND d3DWindowHWnd;
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+namespace OpenDLA {
+	namespace Simulation {
+		void				Destroy();
+		void				OnStart();
+		DirectX::XMFLOAT3	OnStep(const Point& _point);
+		bool				Collides(const Point& _point);
+	}
+}
+
+namespace OpenDLA {
+	namespace Simulation {
+		PyObject* m_pModule = nullptr;
+		PyObject* m_pStepFun = nullptr;
+		PyObject* m_pOnStartFun = nullptr;
+		std::vector<Point> m_points;
+		std::vector<unsigned int> m_walkers;
+
+		static PyObject* AddPoint(PyObject* self, PyObject* args)
+		{
+			Point newPoint = Point();
+
+			//DirectX::XMFLOAT3 pos = DirectX::XMFLOAT3();
+			DirectX::XMFLOAT3 col = DirectX::XMFLOAT3();
+
+			if (!PyArg_ParseTuple(args, "(fff)|(fff)", &newPoint.pos.x, &newPoint.pos.y, &newPoint.pos.z, &newPoint.color.x, &newPoint.color.y, &newPoint.color.z))
+			{
+				PyErr_Print();
+				Py_RETURN_FALSE;
+			}
+
+			m_points.push_back(newPoint);
+
+			Py_RETURN_NONE;
+		}
+
+		static PyMethodDef OpenDLA_PyMethodDef[] = {
+			{"addPoint", AddPoint, METH_VARARGS, "Add a point to the simulation."},
+			{NULL, NULL, 0, NULL}
+		};
+
+		static PyModuleDef OpenDLA_PyModuleDef = {
+			PyModuleDef_HEAD_INIT, "OpenDLA", NULL, -1, OpenDLA_PyMethodDef,
+			NULL, NULL, NULL, NULL
+		};
+
+		static PyObject* PyInit_OpenDLA(void)
+		{
+			return PyModule_Create(&OpenDLA_PyModuleDef);
+		}
+
+		bool Initialise()
+		{
+			PyImport_AppendInittab("OpenDLA", &PyInit_OpenDLA);
+			Py_Initialize();
+			PyObject* pName = PyUnicode_DecodeFSDefault("simulation");
+			m_pModule = PyImport_Import(pName);
+			Py_DECREF(pName);
+			if (!m_pModule) return false;
+
+			// It is not a failure if the function is not there, but it is a fail
+			// if the function is there but not callable
+			m_pStepFun = PyObject_GetAttrString(m_pModule, "OnStep");
+			if (m_pStepFun && !PyCallable_Check(m_pStepFun))
+			{
+				Destroy();
+				return false;
+			}
+
+			m_pOnStartFun = PyObject_GetAttrString(m_pModule, "OnStart");
+			if (m_pOnStartFun && !PyCallable_Check(m_pOnStartFun))
+			{
+				Destroy();
+				return false;
+			}
+
+			// Finally
+			OnStart();
+
+			return true;
+		}
+
+		void Update()
+		{
+			/*
+			Logic:
+			1. Move the walker
+			2. Check for Collision
+			3. Save walker as point if needed
+			4. Spawn new Walker
+			*/
+
+			// 1
+			OnStep(m_points[m_walkers[0]]);
+			DirectX::XMFLOAT3 move = OnStep(m_points[m_walkers[0]]);
+			m_points[m_walkers[0]].pos.x = m_points[m_walkers[0]].pos.x + move.x;
+			m_points[m_walkers[0]].pos.y = m_points[m_walkers[0]].pos.y + move.y;
+			m_points[m_walkers[0]].pos.z = m_points[m_walkers[0]].pos.z + move.z;
+
+			// 2
+			if (Collides(m_points[m_walkers[0]]))
+			{
+				m_points.push_back(m_points[m_walkers[0]]);
+				m_walkers[0]++;
+			}
+
+		}
+
+		void Destroy()
+		{
+			if (m_pStepFun) Py_DECREF(m_pStepFun);
+			if (m_pOnStartFun) Py_DECREF(m_pOnStartFun);
+			Py_DECREF(m_pModule);
+		}
+
+		bool Collides(const Point& _point)
+		{
+			return false;
+		}
+
+		DirectX::XMFLOAT3 OnStep(const Point& _point)
+		{
+			PyObject* returned = PyObject_CallObject(m_pStepFun, nullptr);
+			DirectX::XMFLOAT3 ret(0, 0, 0);
+
+			if (!PyArg_ParseTuple(returned, "ff|f", &ret.x, &ret.y, &ret.z))
+			{
+				PyErr_Print();
+				return ret;
+			}
+
+			if (returned)
+				Py_DECREF(returned);
+
+			return ret;
+		}
+
+		void OnStart()
+		{
+			if (m_pOnStartFun != nullptr)
+			{
+				// It is up to the user to define the simulation logic. They may not
+				// define a seed, but may investigate two walkers colliding with one 
+				// another
+				PyObject_CallObject(m_pOnStartFun, nullptr);
+
+				m_walkers.push_back(1);
+			}
+			else
+			{
+				// If the user has not defined an OnStart function, we just initialise
+				// to a single [0 0 0] seed.
+				Point a;
+				a.pos = DirectX::XMFLOAT3(0, 0, 0);
+				a.color = DirectX::XMFLOAT3(1, 0, 0);
+
+				m_points.push_back(a);
+
+				a.pos = DirectX::XMFLOAT3(10, 0, 0);
+				a.color = DirectX::XMFLOAT3(0, 1, 1);
+
+				m_points.push_back(a);
+
+				m_walkers.push_back(1);
+			}
+		}
+	}
+}
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
@@ -83,7 +248,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 	PeekMessage(&msg, NULL, 0U, 0U, PM_NOREMOVE);
 	
 	// Handle the Python Logic initialisation
-	if (!g_simulation.Initialise())
+	if (!OpenDLA::Simulation::Initialise())
 		return 1;
 
 	
@@ -112,11 +277,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance
 		else
 		{
 			// Update the scene.
-			g_simulation.Update();
+			OpenDLA::Simulation::Update();
 			// renderer.Update();
 
 			// Render frames during idle time (when no messages are waiting).
-			renderer.Render(g_simulation);
+			renderer.Render(OpenDLA::Simulation::m_points);
 
 			// Present the frame to the screen.
 			renderer.Present();
