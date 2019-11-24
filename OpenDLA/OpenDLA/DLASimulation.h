@@ -43,17 +43,21 @@ namespace OpenDLA
 
 	// The API which python ma
 	private:
-		GetPoints // Returns All Points (possibly with query parameters or filter)
-		PyObject* GetPoint(PyObject* self, PyObject* args);
-		GetNumPoints
+		static PyModuleDef OpenDLA_PyModuleDef;
+		static PyObject* InitialisePythonAPI(void);
+		static PyObject* AddPoint(PyObject* self, PyObject* args);
 
-		SetPoint // Change an existing point
-		Add Point // Append a new point
+		//GetPoints // Returns All Points (possibly with query parameters or filter)
+		//PyObject* GetPoint(PyObject* self, PyObject* args);
+		//GetNumPoints
 
-		PyObject* AddPoint(PyObject* self, PyObject* args);
-		
-		PyObject* SetWalker(PyObject* self, PyObject* args);
-		PyObject* GetWalker(PyObject* self, PyObject* args);
+		//SetPoint // Change an existing point
+		//Add Point // Append a new point
+
+		//PyObject* AddPoint(PyObject* self, PyObject* args);
+		//
+		//PyObject* SetWalker(PyObject* self, PyObject* args);
+		//PyObject* GetWalker(PyObject* self, PyObject* args);
 
 	// Python Function Calls. These map to calls in the Python files
 	// Mentality is a 1:1 mapping, so what is returned in python will be returned here

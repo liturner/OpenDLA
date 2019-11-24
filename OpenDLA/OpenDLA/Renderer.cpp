@@ -164,11 +164,15 @@ HRESULT OpenDLA::Renderer::OnWindowResize(const RECT& _windowRect)
 
 void OpenDLA::Renderer::Render(DLASimulation& _simulation)
 {
+	// Early Out if nothing to render
+	if (_simulation.m_points.size() == 0)
+		return;
+
 	// Vertex Buffer
 	// m_pDeviceContext->Map()
 	D3D11_MAPPED_SUBRESOURCE resource;
 	m_pDeviceContext->Map(m_pVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &resource);
-	memcpy(resource.pData, &_simulation.m_points[0], sizeof(_simulation.m_points[0]) * _simulation.m_points.size());
+	memcpy(resource.pData, &_simulation.m_points[0], sizeof(OpenDLA::Point) * _simulation.m_points.size());
 	m_pDeviceContext->Unmap(m_pVertexBuffer, 0);
 
 	///

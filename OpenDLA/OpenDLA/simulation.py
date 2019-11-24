@@ -3,7 +3,7 @@ def OnStart():
 	pass
 
 def OnStep():
-    return (0.4, 0.7)
+    return (-1,0)
 
 
 #def OnCollide():
